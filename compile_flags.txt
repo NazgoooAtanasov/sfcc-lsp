@@ -1,2 +1,3 @@
--I/usr/include/nlohmann
--std=c++17
+-I/usr/include/nlohmann 
+-std=c++17 
+-g
