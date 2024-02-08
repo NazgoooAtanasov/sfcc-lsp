@@ -1,3 +1,5 @@
+#include "includes/lsp.hpp"
+
 #define COMPLETION_REQUIRE_ITEMS { \
 (lsp::CompletionItem) { .label = "reqMarkupText", .insertText = "const MarkupText = require('dw/content/MarkupText');" }, \
 (lsp::CompletionItem) { .label = "reqReturnHooks", .insertText = "const ReturnHooks = require('dw/order/hooks/ReturnHooks');" }, \

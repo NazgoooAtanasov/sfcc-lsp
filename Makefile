@@ -1,4 +1,4 @@
-CFLAGS=-I/usr/include/nlohmann -std=c++20 -g
+CFLAGS=-I/usr/include/nlohmann -Iincludes -std=c++20 
 
 lsp: main.cpp
-	g++ $(CFLAGS) main.cpp -o lsp
+	g++ $(CFLAGS) main.cpp lsp.cpp -o lsp
