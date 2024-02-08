@@ -5,14 +5,35 @@
 #include <optional>
 #include <vector>
 #include <cstdlib>
+#include <ranges>
+
+#include "items.hpp"
+
 using json = nlohmann::json;
 
+namespace lsp {
+  struct CompletionItem {
+    std::string label;
+    std::string insertText;
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(CompletionItem, label, insertText);
+  };
+}
+
 static std::map<std::string, std::string> m;
+static std::vector<lsp::CompletionItem> items;
 
 namespace lsp {
   class Message {
     public:
       std::string jsonrpc = "2.0";
+  };
+
+  template <typename T>
+  class NotificationMessage : public Message {
+    public:
+      std::string method;
+      T params;
+      NLOHMANN_DEFINE_TYPE_INTRUSIVE(NotificationMessage, method, params);
   };
 
   template <typename T>
@@ -22,18 +43,7 @@ namespace lsp {
       T result;
 
     ResponseMessage(int id, T result) : id(id), result(result) {};
-    friend void to_json(nlohmann ::json &nlohmann_json_j,
-                        const ResponseMessage &nlohmann_json_t) {
-      nlohmann_json_j["id"] = nlohmann_json_t.id;
-      nlohmann_json_j["result"] = nlohmann_json_t.result;
-      nlohmann_json_j["jsonrpc"] = nlohmann_json_t.jsonrpc;
-    }
-    friend void from_json(const nlohmann ::json &nlohmann_json_j,
-                          ResponseMessage &nlohmann_json_t) {
-      nlohmann_json_j.at("id").get_to(nlohmann_json_t.id);
-      nlohmann_json_j.at("result").get_to(nlohmann_json_t.result);
-      nlohmann_json_j.at("jsonrpc").get_to(nlohmann_json_t.jsonrpc);
-    };
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(ResponseMessage, id, result);
   };
 
   class InitializeResult {
@@ -58,11 +68,6 @@ namespace lsp {
 
     InitializeResult(std::string name, std::string version): serverInfo({name, version}) {};
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(InitializeResult, serverInfo, capabilities);
-  };
-
-  struct CompletionItem {
-    std::string label;
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(CompletionItem, label);
   };
 
   class CompletionList {
@@ -96,21 +101,14 @@ namespace lsp {
 
     struct textDocumentContentChangeEvent {
       std::string text;
-      std::optional<int> rangeLength;
-      Range range;
-
-      NLOHMANN_DEFINE_TYPE_INTRUSIVE(textDocumentContentChangeEvent, text, range);
-    } contentChanges;
+      NLOHMANN_DEFINE_TYPE_INTRUSIVE(textDocumentContentChangeEvent, text);
+    };
+    std::vector<textDocumentContentChangeEvent> contentChanges;
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(DidChangeTextDocumentParams, textDocument, contentChanges);
   };
 
   CompletionList handle_completion(json request) {
-    std::vector<CompletionItem> items = {
-      (CompletionItem) { .label = "testtest" },
-      (CompletionItem) { .label = "krokodil" },
-      (CompletionItem) { .label = "pepe" } };
-
     return CompletionList(false, items);
   }
 
@@ -126,9 +124,12 @@ namespace lsp {
     return {};
   }
 
-  void handle_notification(json request) {
+  void handle_notification(json request, std::ofstream* log_file) {
     if (request["method"] == "textDocument/didChange") {
-      auto didChangeNotification = request.template get<lsp::DidChangeTextDocumentParams>();
+      auto didChangeNotification = request.template get<lsp::NotificationMessage<lsp::DidChangeTextDocumentParams>>();
+      for (auto& element : didChangeNotification.params.contentChanges) {
+        m.insert({didChangeNotification.params.textDocument.uri, element.text});
+      }
     }
   }
 }
@@ -136,9 +137,9 @@ namespace lsp {
 int main(void) {
   setvbuf(stdin, NULL, _IONBF, 0);
   std::ofstream log_file("./lsp.log");
-
   log_file << "Starting lsp!!!\n";
 
+  items = COMPLETION_REQUIRE_ITEMS;
   while (true) {
     std::string content_length_line;
     std::getline(std::cin, content_length_line, '\r'); std::cin.get();
@@ -151,7 +152,7 @@ int main(void) {
     int content_length = std::atoi(content_length_str.c_str());
 
     char* request_str = (char*)malloc((content_length + 1) * sizeof(char));
-    memset(request_str, '\0', sizeof(char) * content_length);
+    memset(request_str, '\0', sizeof(char) * content_length + 1);
 
     std::cin.read(request_str, content_length);
     log_file << "[REQUEST]: " << request_str << std::endl;
@@ -162,7 +163,6 @@ int main(void) {
     }
 
     json request = json::parse(request_str);
-
     if (request.contains("id")) {
       auto response = lsp::handle_request(request);
       if (response.has_value()) {
@@ -170,11 +170,9 @@ int main(void) {
         log_file << "[RESPONSE]: " << response.value().dump() << std::endl;
       }
     } else {
-      lsp::handle_notification(request);
+      lsp::handle_notification(request, &log_file);
     }
 
-
-    log_file.flush();
     memset(request_str, '\0', sizeof(char) * content_length);
     free(request_str);
   }

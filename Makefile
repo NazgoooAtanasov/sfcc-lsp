@@ -1,4 +1,4 @@
-CFLAGS=-I/usr/include/nlohmann -std=c++17 -g
+CFLAGS=-I/usr/include/nlohmann -std=c++20 -g
 
-jsoncpp: main.cpp
-	g++ $(CFLAGS) main.cpp -o jsoncpp
+lsp: main.cpp
+	g++ $(CFLAGS) main.cpp -o lsp
