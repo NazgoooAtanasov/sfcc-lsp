@@ -1,7 +1,10 @@
 #ifndef SFCC_LSP_HPP_
 #define SFCC_LSP_HPP_
 
+#include <cerrno>
 #include <string>
+#include <ranges>
+#include <glob.h>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -16,6 +19,12 @@ namespace lsp {
     Position start;
     Position end;
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(Range, start, end);
+  };
+
+  struct Location {
+    std::string uri;
+    Range range;
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Location, uri, range);
   };
 
   struct CompletionItem {
@@ -60,7 +69,8 @@ namespace lsp {
   struct Capabilities {
     CompletionProvider completionProvider;
     int textDocumentSync = 1;
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Capabilities, completionProvider, textDocumentSync);
+    bool definitionProvider = true;
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Capabilities, completionProvider, textDocumentSync, definitionProvider);
   };
 
   class InitializeResult {
@@ -92,6 +102,19 @@ namespace lsp {
       NLOHMANN_DEFINE_TYPE_INTRUSIVE(TextDocumentContentChangeEvent, text);
   };
 
+  struct TextDocumentItem {
+    std::string uri;
+    std::string languageId;
+    int version;
+    std::string text;
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(TextDocumentItem, uri, languageId, version, text);
+  };
+
+  struct DidOpenTextDocumentParams {
+    TextDocumentItem textDocument;
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(DidOpenTextDocumentParams, textDocument);
+  };
+
   struct DidChangeTextDocumentParams {
     TextDocument textDocument;
     std::vector<TextDocumentContentChangeEvent> contentChanges;
@@ -102,12 +125,20 @@ namespace lsp {
     private:
       std::vector<CompletionItem> items;
       std::map<std::string, std::string> documents;
-
-    public:
-      LSP(std::vector<CompletionItem> items) : items(items) {};
-      LSP(std::vector<CompletionItem> items, std::map<std::string, std::string> documents) : items(items), documents(documents) {};
+      std::optional<std::string> get_document(std::string uri);
+      std::string current_path;
 
       CompletionList handle_completion(json request);
+      std::optional<Location> handle_definition(json request);
+      std::string to_uri(std::string file_path);
+
+    public:
+      LSP(std::vector<CompletionItem> items, std::string current_path) :
+        items(items), current_path(current_path) {};
+
+      LSP(std::vector<CompletionItem> items, std::string current_path, std::map<std::string, std::string> documents) : 
+        items(items), current_path(current_path), documents(documents) {};
+
       std::optional<json> handle_request(json request);
       void handle_notification(json request);
   };

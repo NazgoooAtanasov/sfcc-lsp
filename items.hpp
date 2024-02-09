@@ -410,4 +410,4 @@
 (lsp::CompletionItem) { .label = "reqVariationGroup", .insertText = "const VariationGroup = require('dw/catalog/VariationGroup');" }, \
 (lsp::CompletionItem) { .label = "reqCredentials", .insertText = "const Credentials = require('dw/customer/Credentials');" }, \
 (lsp::CompletionItem) { .label = "reqHookMgr", .insertText = "const HookMgr = require('dw/system/HookMgr');" }, \
-(lsp::CompletionItem) { .label = "reqTotalFixedPriceDiscount", .insertText = "const TotalFixedPriceDiscount = require('dw/campaign/TotalFixedPriceDiscount');" }, } \
+(lsp::CompletionItem) { .label = "reqTotalFixedPriceDiscount", .insertText = "const TotalFixedPriceDiscount = require('dw/campaign/TotalFixedPriceDiscount');" }, } 

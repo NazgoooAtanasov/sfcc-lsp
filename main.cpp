@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -15,10 +16,13 @@ using json = nlohmann::json;
 int main(void) {
   setvbuf(stdin, NULL, _IONBF, 0);
   std::ofstream log_file("./lsp.log");
-  log_file << "Starting lsp!!!\n";
+  auto current_path = std::filesystem::current_path();
+  auto current_path_str = current_path.string();
+  current_path_str.push_back('/');
+  log_file << "Starting lsp in " << current_path << std::endl;
 
   std::vector<lsp::CompletionItem> items = COMPLETION_REQUIRE_ITEMS;
-  lsp::LSP lsp(items);
+  lsp::LSP lsp(items, current_path_str);
 
   while (true) {
     std::string content_length_line;
