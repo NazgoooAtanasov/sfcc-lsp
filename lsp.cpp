@@ -1,4 +1,6 @@
 #include "includes/lsp.hpp"
+#include "workspace.hpp"
+#include <filesystem>
 
 using namespace lsp;
 
@@ -92,6 +94,25 @@ std::optional<Location> LSP::handle_definition(json request) {
   return loc;
 }
 
+std::optional<std::vector<CartridgeEntry>> LSP::handle_cartridges(json request) {
+  std::vector<CartridgeEntry> cartridges_list;
+  workspace::cartridges cartridges;
+  workspace::traverse(this->current_path, cartridges);
+
+  if (cartridges.empty()) {
+    return {};
+  }
+
+  for (const auto& cartridge : cartridges) {
+    cartridges_list.push_back((CartridgeEntry) {
+        .file_path = cartridge.second,
+        .file_name = cartridge.first,
+        });
+  }
+
+  return cartridges_list;
+}
+
 std::optional<json> LSP::handle_request(json request) {
     if (request["method"] == "initialize") {
       return ResponseMessage<InitializeResult>(request["id"], InitializeResult("my-custom-sfcc-lsp", "0.0.1"));
@@ -108,6 +129,14 @@ std::optional<json> LSP::handle_request(json request) {
       }
 
       return ResponseMessage<Location>(request["id"], location.value());
+    }
+
+    if (request["method"] == "sfcc-lsp/workspace/cartridges") {
+      auto location = this->handle_cartridges(request);
+      if (!location.has_value()) {
+        return {};
+      }
+      return ResponseMessage<std::vector<CartridgeEntry>>(request["id"], location.value());
     }
 
     return {};

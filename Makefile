@@ -1,4 +1,7 @@
 CFLAGS=-I/usr/include/nlohmann -Iincludes -std=c++20 
+SOURCES= main.cpp \
+				 lsp.cpp \
+				 workspace.cpp
 
-lsp: main.cpp lsp.cpp
-	g++ $(CFLAGS) main.cpp lsp.cpp -o lsp
+lsp: $(SOURCES)
+	g++ $(CFLAGS) $(SOURCES) -o lsp

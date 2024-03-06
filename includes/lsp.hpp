@@ -121,6 +121,12 @@ namespace lsp {
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(DidChangeTextDocumentParams, textDocument, contentChanges);
   };
 
+  struct CartridgeEntry {
+    std::string file_path;
+    std::string file_name;
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(CartridgeEntry, file_name, file_path);
+  };
+
   class LSP {
     private:
       std::vector<CompletionItem> items;
@@ -130,6 +136,7 @@ namespace lsp {
 
       CompletionList handle_completion(json request);
       std::optional<Location> handle_definition(json request);
+      std::optional<std::vector<CartridgeEntry>> handle_cartridges(json request);
       std::string to_uri(std::string file_path);
 
     public:
