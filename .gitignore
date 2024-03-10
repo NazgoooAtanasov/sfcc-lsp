@@ -1,3 +1,4 @@
 *.js
 lsp.log
 lsp
+*.o

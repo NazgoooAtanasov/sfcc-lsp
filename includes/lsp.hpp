@@ -6,6 +6,7 @@
 #include <ranges>
 #include <glob.h>
 #include <nlohmann/json.hpp>
+#include <treesitter.hpp>
 using json = nlohmann::json;
 
 namespace lsp {
@@ -133,6 +134,7 @@ namespace lsp {
       std::map<std::string, std::string> documents;
       std::optional<std::string> get_document(std::string uri);
       std::string current_path;
+      TreeSitter ts;
 
       CompletionList handle_completion(json request);
       std::optional<Location> handle_definition(json request);

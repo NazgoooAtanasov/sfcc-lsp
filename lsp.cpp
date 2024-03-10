@@ -37,35 +37,21 @@ std::optional<Location> LSP::handle_definition(json request) {
     lines.push_back(buff);
   }
 
-  auto current_line = lines[position.line];
-
-  size_t index = current_line.find("require");
-  if (index == std::string::npos) {
-    return {};
-  }
-
-  index = current_line.find("'");
-  if (index == std::string::npos) {
-    return {};
-  }
-
-  size_t end = current_line.find_last_of("'");
-  if (end == std::string::npos) {
-    return {};
-  }
-
-  auto require = current_line.substr(index + 1, (end - 1) - index);
+  RequireLineInfo req = this->ts.parse_require_line(lines[position.line]);
+  std::string require = req.cartridge_file_path;
   require.insert(0, 1, '*');
   require.insert(0, this->current_path);
   require.append(".js");
 
   glob_t glob_result = {0};
   size_t glob_status = glob(require.c_str(), GLOB_TILDE, NULL, &glob_result);
+
   std::string error;
   if (glob_status != 0) {
     std::stringstream ss;
     ss << strerror(errno) << std::endl;
     error = ss.str();
+    return {};
   }
 
   std::vector<std::string> filenames;
