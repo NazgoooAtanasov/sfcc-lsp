@@ -129,6 +129,8 @@ namespace lsp {
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(CartridgeEntry, file_name, file_path);
   };
 
+  typedef std::map<std::string, std::vector<std::string>> FileCache;
+
   class LSP {
     private:
       std::vector<CompletionItem> items;
@@ -136,11 +138,17 @@ namespace lsp {
       std::optional<std::string> get_document(std::string uri);
       std::string current_path;
       TreeSitter ts;
+      // @TODO: this should be onto a file so that the lsp does not traverse the files on every attach
+      // this should start handling new files. for now, new files will not be included in the cache,
+      // therefore they will not appear as possible locations
+      FileCache fc;
 
       CompletionList handle_completion(json request);
       std::optional<std::vector<Location>> handle_definition(json request);
       std::optional<std::vector<CartridgeEntry>> handle_cartridges(json request);
+
       std::string to_uri(std::string file_path);
+      void build_file_cache(void);
 
     public:
       std::ofstream log_file;
@@ -148,11 +156,13 @@ namespace lsp {
       LSP(std::vector<CompletionItem> items, std::string current_path) :
         items(items), current_path(current_path) {
           this->log_file = std::ofstream("./lsp.log");
+          this->build_file_cache();
         };
 
       LSP(std::vector<CompletionItem> items, std::string current_path, std::map<std::string, std::string> documents) : 
         items(items), current_path(current_path), documents(documents) {
           this->log_file = std::ofstream("./lsp.log");
+          this->build_file_cache();
         };
 
       ~LSP() {

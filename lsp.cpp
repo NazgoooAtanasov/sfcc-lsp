@@ -1,8 +1,74 @@
 #include "includes/lsp.hpp"
 #include "workspace.hpp"
-#include <filesystem>
 
 using namespace lsp;
+
+std::vector<std::string> split_string(const std::string& input, char delimiter) {
+    std::vector<std::string> tokens;
+    size_t start = 0, end = 0;
+
+    while ((end = input.find(delimiter, start)) != std::string::npos) {
+        tokens.push_back(input.substr(start, end - start));
+        start = end + 1;
+    }
+
+    tokens.push_back(input.substr(start));
+
+    return tokens;
+}
+
+bool is_forbidden(std::string& path_str) {
+    return path_str.find(".git") != std::string::npos ||
+      path_str.find("node_modules") != std::string::npos ||
+      path_str.find("test") != std::string::npos;
+}
+
+void process_dir(std::filesystem::path path, lsp::FileCache& fc) {
+  auto path_str = path.string();
+
+  if (is_forbidden(path_str)) return; 
+
+  for (const auto& entry : std::filesystem::directory_iterator(path)) {
+    if (entry.is_directory()) {
+      process_dir(entry.path(), fc);
+    } else {
+      auto file_path = entry.path().string();
+
+      // @TODO: this `/` delim is not cross platform
+      std::vector<std::string> toks = split_string(file_path, '/');
+
+      size_t cartridge_pos = 0;
+      for (size_t i = 0; i < toks.size(); ++i) {
+        if (toks.at(i) == "cartridge") {
+          cartridge_pos = i;
+        }
+      }
+
+      if (cartridge_pos == 0) {
+        continue;
+      }
+
+      std::string cartridge_file = std::accumulate(
+          toks.begin() + cartridge_pos,
+          toks.end(),
+          std::string(),
+          [](std::string a, std::string b) {
+            return a + "/" + b;
+          });
+
+      if (fc.find(cartridge_file) == fc.end()) {
+        fc.insert({cartridge_file, std::vector<std::string> { file_path }});
+        continue;
+      }
+
+      fc[cartridge_file].push_back(file_path);
+    }
+  }
+}
+
+void LSP::build_file_cache(void) {
+  process_dir(std::filesystem::path(this->current_path), this->fc);
+}
 
 std::optional<std::string> LSP::get_document(std::string uri) {
   if (this->documents.contains(uri)) {
@@ -16,6 +82,7 @@ std::string LSP::to_uri(std::string file_path) {
   file_uri.append(file_path);
   return file_uri;
 }
+
 
 CompletionList LSP::handle_completion(json request) {
   return CompletionList(false, this->items);
@@ -42,40 +109,25 @@ std::optional<std::vector<Location>> LSP::handle_definition(json request) {
     return {};
   }
 
+  // */cartridge/something/something
   std::string require = req.value().cartridge_file_path;
-  require.insert(0, "/*");
-  require.insert(0, this->current_path);
-  require.append(".js");
+  require.append(".js"); // */cartridge/something/something.js
+  require.replace(0, 1, ""); // /cartridge/something/something.js
 
-  // @TODO: globbing is not an ideal solution. it is limitited on platform level
-  // plus no recursive search. implement file traverser that should get cached.
-  glob_t glob_result = {0};
-  size_t glob_status = glob(require.c_str(), GLOB_TILDE, NULL, &glob_result);
-
-  std::string error;
-  if (glob_status != 0) {
-    std::stringstream ss;
-    ss << strerror(errno) << std::endl;
-    error = ss.str();
+  if (this->fc.find(require) == this->fc.end()) {
     return {};
   }
 
   std::vector<Location> locations;
-  for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
-    Location location = {
-      .uri = this->to_uri(glob_result.gl_pathv[i]),
-      .range = (Range){
-        .start = (Position) { .line = 0, .character = 0 },
-        .end = (Position) { .line = 0, .character = 0, }
-      }
-    };
-
-    locations.push_back(location);
-  }
-  globfree(&glob_result);
-
-  if (locations.size() <= 0) {
-    return {};
+  for (const auto& path : this->fc[require]) {
+    locations.push_back(
+        (Location) {
+          .uri = this->to_uri(path),
+          .range = (Range) {
+            .start = (Position) {.line = 0, .character = 0},
+            .end   = (Position) {.line = 0, .character = 0},
+          }
+        });
   }
 
   return locations;
