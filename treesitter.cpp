@@ -1,6 +1,6 @@
 #include "treesitter.hpp"
 
-lsp::RequireLineInfo lsp::TreeSitter::parse_require_line(std::string require_line)  {
+std::optional<lsp::RequireLineInfo> lsp::TreeSitter::parse_require_line(std::string require_line)  {
   RequireLineInfo req_info;
 
   TSTree* tree = ts_parser_parse_string(
@@ -22,14 +22,17 @@ lsp::RequireLineInfo lsp::TreeSitter::parse_require_line(std::string require_lin
       &err_type);
 
   if (err_type != TSQueryErrorNone) {
-    // 
+    // @TODO: figure out how to report an error from line parsing. does it matter? 
+    return {};
   }
 
   TSQueryCursor* cursor = ts_query_cursor_new();
   TSQueryMatch match = {0};
   ts_query_cursor_exec(cursor, query, root);
 
+  size_t match_count = 0 ;
   while (ts_query_cursor_next_match(cursor, &match)) {
+    match_count++;
     if (match.capture_count > 0) {
       for (size_t i = 0; i < match.capture_count; ++i) {
         uint32_t len;
@@ -44,6 +47,10 @@ lsp::RequireLineInfo lsp::TreeSitter::parse_require_line(std::string require_lin
         }
       }
     }
+  }
+
+  if (match_count == 0) {
+    return {};
   }
 
   return req_info;

@@ -21,7 +21,7 @@ CompletionList LSP::handle_completion(json request) {
   return CompletionList(false, this->items);
 }
 
-std::optional<Location> LSP::handle_definition(json request) {
+std::optional<std::vector<Location>> LSP::handle_definition(json request) {
   std::string textDocumentUri = request["params"]["textDocument"]["uri"];
   Position position = request["params"]["position"].template get<Position>();
 
@@ -37,12 +37,18 @@ std::optional<Location> LSP::handle_definition(json request) {
     lines.push_back(buff);
   }
 
-  RequireLineInfo req = this->ts.parse_require_line(lines[position.line]);
-  std::string require = req.cartridge_file_path;
-  require.insert(0, 1, '*');
+  auto req = this->ts.parse_require_line(lines[position.line]);
+  if (!req.has_value()) {
+    return {};
+  }
+
+  std::string require = req.value().cartridge_file_path;
+  require.insert(0, "/*");
   require.insert(0, this->current_path);
   require.append(".js");
 
+  // @TODO: globbing is not an ideal solution. it is limitited on platform level
+  // plus no recursive search. implement file traverser that should get cached.
   glob_t glob_result = {0};
   size_t glob_status = glob(require.c_str(), GLOB_TILDE, NULL, &glob_result);
 
@@ -54,30 +60,25 @@ std::optional<Location> LSP::handle_definition(json request) {
     return {};
   }
 
-  std::vector<std::string> filenames;
+  std::vector<Location> locations;
   for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
-    filenames.push_back(glob_result.gl_pathv[i]);
+    Location location = {
+      .uri = this->to_uri(glob_result.gl_pathv[i]),
+      .range = (Range){
+        .start = (Position) { .line = 0, .character = 0 },
+        .end = (Position) { .line = 0, .character = 0, }
+      }
+    };
+
+    locations.push_back(location);
   }
   globfree(&glob_result);
 
-  if (filenames.size() <= 0) {
+  if (locations.size() <= 0) {
     return {};
   }
 
-  Location loc = {
-    .uri = this->to_uri(filenames.at(0)),
-    .range = (Range){
-      .start = (Position) {
-        .line = 0,
-        .character = 0
-      },
-      .end = (Position) {
-        .line = 0,
-        .character = 0,
-      }
-    }
-  };
-  return loc;
+  return locations;
 }
 
 std::optional<std::vector<CartridgeEntry>> LSP::handle_cartridges(json request) {
@@ -114,7 +115,7 @@ std::optional<json> LSP::handle_request(json request) {
         return {};
       }
 
-      return ResponseMessage<Location>(request["id"], location.value());
+      return ResponseMessage<std::vector<Location>>(request["id"], location.value());
     }
 
     if (request["method"] == "sfcc-lsp/workspace/cartridges") {

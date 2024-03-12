@@ -1,6 +1,7 @@
 #ifndef SFCC_TREESITTER_HPP_
 #define SFCC_TREESITTER_HPP_
 
+#include <optional>
 #include <string>
 #include <tree_sitter/api.h>
 
@@ -27,7 +28,7 @@ namespace lsp {
         ts_parser_delete(this->ts_parser);
       }
 
-      RequireLineInfo parse_require_line(std::string require_line);
+      std::optional<RequireLineInfo> parse_require_line(std::string require_line);
   };
 }
 

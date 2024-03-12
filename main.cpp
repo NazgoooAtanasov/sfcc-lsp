@@ -15,14 +15,14 @@ using json = nlohmann::json;
 
 int main(void) {
   setvbuf(stdin, NULL, _IONBF, 0);
-  std::ofstream log_file("./lsp.log");
+  
   auto current_path = std::filesystem::current_path();
   auto current_path_str = current_path.string();
-  current_path_str.push_back('/');
-  log_file << "Starting lsp in " << current_path << std::endl;
-
   std::vector<lsp::CompletionItem> items = COMPLETION_REQUIRE_ITEMS;
   lsp::LSP lsp(items, current_path_str);
+
+  current_path_str.push_back('/');
+  lsp.log_file << "Starting lsp in " << current_path << std::endl;
 
   while (true) {
     std::string content_length_line;
@@ -39,10 +39,10 @@ int main(void) {
     memset(request_str, '\0', sizeof(char) * content_length + 1);
 
     std::cin.read(request_str, content_length);
-    log_file << "[REQUEST]: " << request_str << std::endl;
+    lsp.log_file << "[REQUEST]: " << request_str << std::endl;
 
     if (!json::accept(request_str)) {
-      log_file << "[ERROR]: Invalid request json." << std::endl;
+      lsp.log_file << "[ERROR]: Invalid request json." << std::endl;
       continue;
     }
 
@@ -51,7 +51,7 @@ int main(void) {
       auto response = lsp.handle_request(request);
       if (response.has_value()) {
         std::cout << "Content-Length: " << response.value().dump().size() << "\r\n\r\n" << response.value().dump();
-        log_file << "[RESPONSE]: " << response.value().dump() << std::endl;
+        lsp.log_file << "[RESPONSE]: " << response.value().dump() << std::endl;
       }
     } else {
       lsp.handle_notification(request);
@@ -61,6 +61,5 @@ int main(void) {
     free(request_str);
   }
 
-  log_file.close();
   return 0;
 }

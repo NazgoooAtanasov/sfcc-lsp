@@ -2,6 +2,7 @@
 #define SFCC_LSP_HPP_
 
 #include <cerrno>
+#include <fstream>
 #include <string>
 #include <ranges>
 #include <glob.h>
@@ -137,16 +138,26 @@ namespace lsp {
       TreeSitter ts;
 
       CompletionList handle_completion(json request);
-      std::optional<Location> handle_definition(json request);
+      std::optional<std::vector<Location>> handle_definition(json request);
       std::optional<std::vector<CartridgeEntry>> handle_cartridges(json request);
       std::string to_uri(std::string file_path);
 
     public:
+      std::ofstream log_file;
+
       LSP(std::vector<CompletionItem> items, std::string current_path) :
-        items(items), current_path(current_path) {};
+        items(items), current_path(current_path) {
+          this->log_file = std::ofstream("./lsp.log");
+        };
 
       LSP(std::vector<CompletionItem> items, std::string current_path, std::map<std::string, std::string> documents) : 
-        items(items), current_path(current_path), documents(documents) {};
+        items(items), current_path(current_path), documents(documents) {
+          this->log_file = std::ofstream("./lsp.log");
+        };
+
+      ~LSP() {
+        this->log_file.close();
+      }
 
       std::optional<json> handle_request(json request);
       void handle_notification(json request);
