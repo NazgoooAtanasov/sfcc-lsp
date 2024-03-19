@@ -88,6 +88,38 @@ CompletionList LSP::handle_completion(json request) {
   return CompletionList(false, this->items);
 }
 
+
+std::optional<std::vector<Location>> LSP::goto_definition_require_line(std::string line) {
+  auto req = this->ts.parse_require_line(line);
+
+  if (!req.has_value())  {
+    return {};
+  }
+
+  // */cartridge/something/something
+  std::string require = req.value().cartridge_file_path;
+  require.append(".js"); // */cartridge/something/something.js
+  require.replace(0, 1, ""); // /cartridge/something/something.js
+
+  if (this->fc.find(require) == this->fc.end()) {
+    return {};
+  }
+
+  std::vector<Location> locations;
+  for (const auto& path : this->fc[require]) {
+    locations.push_back(
+      (Location) {
+        .uri = this->to_uri(path),
+        .range = (Range) {
+          .start = (Position) {.line = 0, .character = 0},
+          .end   = (Position) {.line = 0, .character = 0},
+        }
+      });
+  }
+
+  return locations;
+}
+
 std::optional<std::vector<Location>> LSP::handle_definition(json request) {
   std::string textDocumentUri = request["params"]["textDocument"]["uri"];
   Position position = request["params"]["position"].template get<Position>();
@@ -104,33 +136,29 @@ std::optional<std::vector<Location>> LSP::handle_definition(json request) {
     lines.push_back(buff);
   }
 
-  auto req = this->ts.parse_require_line(lines[position.line]);
-  if (!req.has_value()) {
-    return {};
+  auto require_line = this->goto_definition_require_line(lines[position.line]);
+  if (require_line.has_value()) {
+    return require_line.value();
   }
 
-  // */cartridge/something/something
-  std::string require = req.value().cartridge_file_path;
-  require.append(".js"); // */cartridge/something/something.js
-  require.replace(0, 1, ""); // /cartridge/something/something.js
+  auto object_tokens = this->ts.parse_object_expansion(lines[position.line]);
+  if (object_tokens.has_value() && object_tokens.value().size() > 0) {
+    auto module = object_tokens.value().at(0);
+    auto variable_decl_line = this->ts.get_variable_decl(document.value(), module);
+    if (!variable_decl_line.has_value()) {
+      return {};
+    }
 
-  if (this->fc.find(require) == this->fc.end()) {
-    return {};
+    this->log_file << "The line for the definition is '" << variable_decl_line.value() << std::endl;
+
+    auto require_line = this->goto_definition_require_line(variable_decl_line.value());
+    if (require_line.has_value()) {
+      return require_line.value(); 
+    }
+
   }
 
-  std::vector<Location> locations;
-  for (const auto& path : this->fc[require]) {
-    locations.push_back(
-        (Location) {
-          .uri = this->to_uri(path),
-          .range = (Range) {
-            .start = (Position) {.line = 0, .character = 0},
-            .end   = (Position) {.line = 0, .character = 0},
-          }
-        });
-  }
-
-  return locations;
+  return {};
 }
 
 std::optional<std::vector<CartridgeEntry>> LSP::handle_cartridges(json request) {

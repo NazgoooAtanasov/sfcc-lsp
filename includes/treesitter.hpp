@@ -1,9 +1,11 @@
 #ifndef SFCC_TREESITTER_HPP_
 #define SFCC_TREESITTER_HPP_
 
+#include <tree_sitter/api.h>
 #include <optional>
 #include <string>
-#include <tree_sitter/api.h>
+#include <vector>
+#include <sstream>
 
 extern "C" const TSLanguage* tree_sitter_javascript(void);
 
@@ -16,6 +18,8 @@ namespace lsp {
     private:
       TSParser* ts_parser;
       const TSLanguage* lang;
+      void parse_object_toks(TSNode n, std::vector<std::string>& container, std::string& line);
+      std::string get_node_str_from_points(TSNode n, std::string& line);
 
     public:
       TreeSitter() {
@@ -29,6 +33,8 @@ namespace lsp {
       }
 
       std::optional<RequireLineInfo> parse_require_line(std::string require_line);
+      std::optional<std::vector<std::string>> parse_object_expansion(std::string line);
+      std::optional<std::string> get_variable_decl(std::string file_content, std::string var_name);
   };
 }
 

@@ -143,6 +143,8 @@ namespace lsp {
       // therefore they will not appear as possible locations
       FileCache fc;
 
+      std::optional<std::vector<Location>> goto_definition_require_line(std::string line);
+
       CompletionList handle_completion(json request);
       std::optional<std::vector<Location>> handle_definition(json request);
       std::optional<std::vector<CartridgeEntry>> handle_cartridges(json request);
