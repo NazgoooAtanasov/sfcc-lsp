@@ -150,26 +150,15 @@ namespace lsp {
       std::optional<std::vector<CartridgeEntry>> handle_cartridges(json request);
 
       std::string to_uri(std::string file_path);
+      void prepare_log_file();
       void build_file_cache(void);
 
     public:
       std::ofstream log_file;
 
-      LSP(std::vector<CompletionItem> items, std::string current_path) :
-        items(items), current_path(current_path) {
-          this->log_file = std::ofstream("./lsp.log");
-          this->build_file_cache();
-        };
-
-      LSP(std::vector<CompletionItem> items, std::string current_path, std::map<std::string, std::string> documents) : 
-        items(items), current_path(current_path), documents(documents) {
-          this->log_file = std::ofstream("./lsp.log");
-          this->build_file_cache();
-        };
-
-      ~LSP() {
-        this->log_file.close();
-      }
+      LSP(std::vector<CompletionItem> items, std::string current_path);
+      LSP(std::vector<CompletionItem> items, std::string current_path, std::map<std::string, std::string> documents);
+      ~LSP() { this->log_file.close(); }
 
       std::optional<json> handle_request(json request);
       void handle_notification(json request);

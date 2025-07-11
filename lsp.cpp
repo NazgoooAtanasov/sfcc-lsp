@@ -1,5 +1,6 @@
 #include "includes/lsp.hpp"
 #include "workspace.hpp"
+#include <cstdlib>
 
 using namespace lsp;
 
@@ -65,6 +66,31 @@ void process_dir(std::filesystem::path path, lsp::FileCache& fc) {
     }
   }
 }
+
+void LSP::prepare_log_file() {
+  const char* home = std::getenv("HOME");
+  assert(home != NULL && "This has been ran on a non posix system");
+  std::filesystem::path log_dir = std::filesystem::path(home) / ".sfcclsp";
+  std::filesystem::path log_path = log_dir / "lsp.log";
+  std::filesystem::create_directories(log_dir);
+  this->log_file = std::ofstream(log_path);
+  this->build_file_cache();
+}
+
+lsp::LSP::LSP(std::vector<CompletionItem> items, std::string current_path) :
+  items(items),
+  current_path(current_path) 
+{
+  prepare_log_file();
+};
+
+lsp::LSP::LSP(std::vector<CompletionItem> items, std::string current_path, std::map<std::string, std::string> documents) : 
+  items(items),
+  current_path(current_path),
+  documents(documents) 
+{
+  prepare_log_file();
+};
 
 void LSP::build_file_cache(void) {
   process_dir(std::filesystem::path(this->current_path), this->fc);
